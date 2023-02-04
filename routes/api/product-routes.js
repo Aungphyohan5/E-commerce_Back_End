@@ -17,7 +17,7 @@ router.get('/', async (req, res) => {
             sequelize.literal(
               '(SELECT category_name FROM category WHERE product.category_id = category.id)'
             ),
-            'category_name',
+            'category',
           ]
         ]
 
@@ -30,13 +30,46 @@ router.get('/', async (req, res) => {
 })
 
 // get one product
-router.get('/:id', (req, res) => {
+router.get('/:id', async (req, res) => {
   // find a single product by its `id`
   // be sure to include its associated Category and Tag data
+  try {
+    const productData = await Product.findByPk(req.params.id, {
+      include: [{ model: Category }, { model: Tag }],
+      attributes: {
+        include: [
+          [
+            sequelize.literal(
+              '(SELECT category_name FROM category WHERE product.category_id = category.id)'
+            ),
+            'category',
+          ]
+        ]
+
+      }
+    });
+    res.status(200).json(productData);
+  } catch (err) {
+    res.status(500).json(err)
+  }
 });
 
 // create new product
 router.post('/', (req, res) => {
+
+  Product.create({
+    product_name: req.body.product_name,
+    price: req.body.price,
+    stock: req.body.stock,
+    category_id: req.body.tagIds
+  })
+    .then((newProduct) => {
+      res.json(newProduct)
+      console.log(newProduct)
+    })
+    .catch((err => {
+      res.json(err);
+    }))
   /* req.body should look like this...
     {
       product_name: "Basketball",
@@ -45,6 +78,7 @@ router.post('/', (req, res) => {
       tagIds: [1, 2, 3, 4]
     }
   */
+
   Product.create(req.body)
     .then((product) => {
       // if there's product tags, we need to create pairings to bulk create in the ProductTag model
@@ -111,6 +145,16 @@ router.put('/:id', (req, res) => {
 
 router.delete('/:id', (req, res) => {
   // delete one product by its `id` value
+  Product.destroy({
+    where: {
+      id: req.params.id,
+    }
+  })
+    .then((deletedProduct) => {
+      res.json(deletedProduct)
+    })
+    .catch((err => res.json(err)))
 });
+
 
 module.exports = router;
